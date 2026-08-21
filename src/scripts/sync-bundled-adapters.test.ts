@@ -573,21 +573,36 @@ describe("single-process bundled adapter generation sync", () => {
     if (xWeb === undefined || linkedinWeb === undefined) {
       throw new Error("bundled x-web and linkedin-web inventory is required");
     }
-    const futureX = structuredClone(xWeb.current.manifest);
-    futureX.version = "1.10.0";
-    const xPublish = futureX.operations["posts.publish"];
+    const xPublish = xWeb.current.manifest.operations["posts.publish"];
+    const linkedInDraft = linkedinWeb.current.manifest.operations["articles.draft.save"];
     if (xPublish === undefined || !("webSession" in xPublish)) {
       throw new Error("x-web posts.publish web session is required");
     }
-    xPublish.webSession = { ...xPublish.webSession, contractVersion: 4 };
-    expect(xPublish.webSession.contractVersion).toBe(4);
-    const futureLinkedIn = structuredClone(linkedinWeb.current.manifest);
-    futureLinkedIn.version = "1.16.0";
-    const linkedInDraft = futureLinkedIn.operations["articles.draft.save"];
     if (linkedInDraft === undefined || !("webSession" in linkedInDraft)) {
       throw new Error("linkedin-web articles.draft.save web session is required");
     }
-    linkedInDraft.webSession = { ...linkedInDraft.webSession, contractVersion: 8 };
+    const futureX = {
+      ...xWeb.current.manifest,
+      version: "1.10.0",
+      operations: {
+        ...xWeb.current.manifest.operations,
+        "posts.publish": {
+          ...xPublish,
+          webSession: { ...xPublish.webSession, contractVersion: 4 },
+        },
+      },
+    };
+    const futureLinkedIn = {
+      ...linkedinWeb.current.manifest,
+      version: "1.16.0",
+      operations: {
+        ...linkedinWeb.current.manifest.operations,
+        "articles.draft.save": {
+          ...linkedInDraft,
+          webSession: { ...linkedInDraft.webSession, contractVersion: 8 },
+        },
+      },
+    };
     expect(parseDiagnosticManifest(futureX, providerPluginRegistry).ok).toBe(true);
     expect(parseDiagnosticManifest(futureLinkedIn, providerPluginRegistry).ok).toBe(true);
     expect(parseRuntimeManifest(futureX, providerPluginRegistry).ok).toBe(false);
