@@ -1987,20 +1987,12 @@ describe("X authenticated internal-API runtime", () => {
     ]);
     expect(JSON.parse(calls.find((call) => call.url.pathname.endsWith("/ArticleEntityDraftCreate"))?.body ?? "null"))
       .toMatchObject({
-        variables: {
-          content_state: {
-            entity_map: [
-              {
-                value: {
-                  data: {
-                    media_items: [{ local_media_id: 1, media_category: "DraftTweetImage", media_id: mediaIds[0] }],
-                  },
-                },
-              },
-            ],
-          },
-        },
+        variables: { content_state: expectedContentState, title },
       });
+    expect(
+      JSON.parse(calls.find((call) => call.url.pathname.endsWith("/ArticleEntityDraftCreate"))?.body ?? "null")
+        .variables.content_state.entity_map[0].value.data.media_items[0].local_media_id,
+    ).toBe(1);
     expect(calls.filter((call) => call.url.pathname.endsWith("/ArticleEntityDraftCreate"))).toHaveLength(1);
     expect(calls.some((call) => call.url.pathname.endsWith("/ArticleEntityPublish"))).toBeFalse();
   });
