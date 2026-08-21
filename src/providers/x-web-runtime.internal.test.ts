@@ -1496,13 +1496,14 @@ describe("X authenticated internal-API runtime", () => {
           return jsonResponse({ media_id_string: mediaId, expires_after_secs: 86_400 }, 202);
         }
         if (command === "APPEND") {
-          expect(mediaIds).toContain(request.url.searchParams.get("media_id"));
+          const mediaId = request.url.searchParams.get("media_id");
+          expect(mediaId === mediaIds[0] || mediaId === mediaIds[1]).toBeTrue();
           expect(request.url.searchParams.get("segment_index")).toBe("0");
           return new Response(null, { status: 204 });
         }
         if (command === "FINALIZE") {
           const mediaId = request.url.searchParams.get("media_id");
-          expect(mediaIds).toContain(mediaId);
+          expect(mediaId === mediaIds[0] || mediaId === mediaIds[1]).toBeTrue();
           return jsonResponse({ media_id_string: mediaId, expires_after_secs: 86_400 }, 201);
         }
       }
