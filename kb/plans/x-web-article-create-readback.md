@@ -87,3 +87,4 @@ Leave these runs alone: `b940e5d8`, `6f4a1209`, `8de55083`, `42c33ead`, `d4b346d
 ## Execution evidence
 
 - 2026-08-21 — Confirm `ecae5825-b8bc-406e-9151-df3951b8edeb` on `9a54c4e` started create after two verified images, then stayed indeterminate at `verifying the created Article readback` with `media-contract-step-failed` and no draft id.
+- 2026-08-21 — `bun test src/providers/x-web-runtime.internal.test.ts src/providers/x-transaction-id.test.ts src/browser.test.ts` passed 83 tests, including two-image private create with extra MEDIA fields, delayed `content_state` readback, post-create title mismatch and query failure, cookie-source `/robots.txt` launch, and post-cookie `/home` `text/html` eval.
