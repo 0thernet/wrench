@@ -27,11 +27,11 @@ Two production confirms on 2026-08-21 failed before dispatch (`dispatchStarted: 
 
 Preview had already planned `x-web` 1.7.0 / `posts.publish@2`. The same box had earlier hosted a 1.10.0 data manifest on the 0.10.1 CLI, which made capabilities invalid until `adapter install --force` restored the bundled 1.7.0 schema.
 
-The version-skew hypothesis explains why preview was impossible before that force-install. It does not explain the confirm failure after 1.7.0 was restored. Confirm still died inside `executePublish` after viewer binding and before `beforeRequest`, which is descriptor resolution and mutation authorization, not an X write.
+A later isolated preview on the `x-web-video-publish` worktree, run through `scripts/local-dev/run-wrench` with its own `WRENCH_STATE_HOME`, bound the same `x-main` cookie-source realm (subject `896906084014845952`). That checkout's `x-web` 1.10.0 / `posts.publish@4` planned digest `8ce5d7b09f0d190088b80cd562fdd6fa22d4224c1018b80eb013563fe4c07499` with inputHash `0a802a7a…`, the same inputHash as the failed 1.7.0 confirms. Stable 0.10.1 plus forced 1.7.0 still previews and still dies before dispatch. The missing-realm hypothesis is closed. The 1.7.0 kernel's reviewed CreateTweet evidence is stale against current X.
 
-`resolveUniqueXWebBundleDescriptor` treats a changed CreateTweet query ID as drift. The 0.10.1 / current-main evidence still named `hIL9XdleMYEtVXOZVbr8Bg`. The current first-party bundle uses `WXTdKnLddrQOunD6MhWi3g` in `main.7792f4fa.js`, observed 2026-08-20. Preview never resolves that live descriptor, so it can plan while confirm fails in about two seconds.
+`resolveUniqueXWebBundleDescriptor` treats a changed CreateTweet query ID as drift. The 0.10.1 evidence still named `hIL9XdleMYEtVXOZVbr8Bg`. The current first-party bundle uses `WXTdKnLddrQOunD6MhWi3g` in `main.7792f4fa.js`, observed 2026-08-20. Preview never resolves that live descriptor, so it can plan while confirm fails in about two seconds. The 1.10.0 worktree already records that query ID; its preview success does not require shipping `posts.publish@4`.
 
-A separate installer hole remains: `syncBundledAdapters` preserved any installed snapshot the current kernel could not validate, including a future `x-web` 1.10.0 or `linkedin-web` 1.16.0 data manifest left by a newer checkout. [[notes/repository-seams|Repository seams]] keep that kernel contract in this package; a sibling checkout cannot own the installed schema.
+`x-web` still registers historical `posts.publish@2`, so a leftover 1.7.0 install remains executable on this kernel. Adapter sync upgrades that archived hash to bundled 1.9.0 / `posts.publish@3`. A separate installer hole remains: `syncBundledAdapters` preserved any installed snapshot the current kernel could not validate, including a future `x-web` 1.10.0 or `linkedin-web` 1.16.0 data manifest left by a newer checkout. [[notes/repository-seams|Repository seams]] keep that kernel contract in this package; a sibling checkout cannot own the installed schema.
 
 ## Scope
 
@@ -43,8 +43,9 @@ A separate installer hole remains: `syncBundledAdapters` preserved any installed
 
 ### Non-goals
 
-- Live X posting.
+- Live X posting or treating a live X confirm as the test.
 - Video / `posts.publish@4` work from `codex/x-web-video-publish`.
+- Making archived `posts.publish@2` a current executable contract.
 - Globally linking a dirty checkout over the stable binary.
 
 ## Constraints and decisions
@@ -53,6 +54,7 @@ A separate installer hole remains: `syncBundledAdapters` preserved any installed
 - Do not print or commit cookies, tokens, or live session material.
 - Query IDs stay revision evidence. Dispatch still resolves the current bundle and rejects drift instead of adopting a new ID silently.
 - Fix the installer pattern for every bundled adapter, not only X.
+- Ship the matching current kernel pair: `x-web` 1.9.0 / `posts.publish@3` plus the 2026-08-20 CreateTweet evidence. Historical `posts.publish@2` stays executable on that same CreateTweet path. Adapter sync upgrades leftover 1.7.0 and replaces a future 1.10.0 / `posts.publish@4` install.
 
 ## Plan
 
@@ -62,9 +64,10 @@ A separate installer hole remains: `syncBundledAdapters` preserved any installed
 
 ## Verification
 
-- Fixture confirm of `posts.publish@3` starts and verifies one CreateTweet dispatch.
+- Fixture confirm of `posts.publish@2` and `posts.publish@3` starts and verifies one CreateTweet dispatch.
 - A stale CreateTweet query ID fails before dispatch with `query-ID drift` and no POST.
 - Adapter sync replaces future `x-web` and `linkedin-web` contracts and keeps a valid user-edited official `x` manifest.
+- Adapter sync upgrades a leftover archived `x-web` 1.7.0 / `posts.publish@2` install to the bundled current contract.
 - `bun run check`.
 
 ## Risks and recovery
@@ -74,12 +77,13 @@ A separate installer hole remains: `syncBundledAdapters` preserved any installed
 
 ## Execution evidence
 
-- 2026-08-21 — Fixture confirm of `posts.publish@3` starts and verifies CreateTweet. A stale query ID fails before dispatch with `query-ID drift` and no POST (`src/providers/x-web-runtime.internal.test.ts`).
+- 2026-08-21 — Fixture confirm of `posts.publish@2` and `posts.publish@3` starts and verifies CreateTweet. A stale query ID fails before dispatch with `query-ID drift` and no POST (`src/providers/x-web-runtime.internal.test.ts`).
 - 2026-08-21 — Adapter sync replaces future `x-web` `posts.publish@4` and `linkedin-web` `articles.draft.save@8` data manifests, and still preserves a valid user-edited official `x` 9.9.9 manifest (`src/scripts/sync-bundled-adapters.test.ts`).
+- 2026-08-21 — Isolated `x-web-video-publish` preview of `posts.publish@4` bound the same `x-main` realm and reused inputHash `0a802a7a…`. Stable 0.10.1 plus forced 1.7.0 still fails confirm before dispatch. Adapter sync upgrades leftover archived `x-web` 1.7.0 to the bundled current contract (`src/scripts/sync-bundled-adapters.test.ts`).
 
 ## Result
 
-Confirm died after viewer binding because the reviewed CreateTweet query ID had drifted. Version skew made preview impossible until 1.7.0 was force-installed, but it was not the confirm failure. The kernel now records `WXTdKnLddrQOunD6MhWi3g` and returns that drift in the pre-dispatch receipt. Bundled adapter sync replaces any installed manifest the current kernel cannot execute.
+Confirm died after viewer binding because the reviewed CreateTweet query ID had drifted. The later isolated 1.10.0 preview reused the same inputHash against the same `x-main` realm, so the broken path is the 1.7.0 kernel evidence against current X. The kernel now records `WXTdKnLddrQOunD6MhWi3g` for both historical `@2` and current `@3`, and returns that drift in the pre-dispatch receipt. Bundled adapter sync upgrades leftover 1.7.0 and replaces any installed manifest the current kernel cannot execute.
 
 ## Durable memory
 

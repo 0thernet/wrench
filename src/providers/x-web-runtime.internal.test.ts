@@ -1748,6 +1748,52 @@ describe("X authenticated internal-API runtime", () => {
     }]);
   });
 
+  test("fixture confirm of historical posts.publish@2 starts and verifies CreateTweet", async () => {
+    const calls: CapturedRequest[] = [];
+    const body = "historical posts.publish@2 dispatch fixture";
+    const result = await executeXWebOperation(
+      xRecipe("posts.publish", 2),
+      { body },
+      xAuth,
+      {
+        dependencies: dependencies(calls, (request) => {
+          if (request.url.href === "https://x.com/home") {
+            return new Response(homeHtml(), { headers: { "content-type": "text/html" } });
+          }
+          if (request.url.href === MAIN_URL) {
+            return new Response(mainBundle(
+              descriptor("Viewer", "u4ni7JqpqdAQxWQfkLsdUQ", "query"),
+              descriptor("CreateTweet", CREATE_TWEET_QUERY_ID, "mutation"),
+              descriptor("TweetResultByRestId", "4hhGRbehkcUVTKf8n0f0xw", "query"),
+            ), { headers: { "content-type": "application/javascript" } });
+          }
+          if (request.url.pathname.endsWith("/Viewer")) return jsonResponse(viewerResponse());
+          if (request.url.pathname.endsWith("/CreateTweet")) {
+            const payload = JSON.parse(request.body ?? "null") as Record<string, unknown>;
+            expect(payload).toMatchObject({
+              variables: { tweet_text: body },
+              queryId: CREATE_TWEET_QUERY_ID,
+            });
+            return jsonResponse(createTweetResponse({ text: body }));
+          }
+          if (request.url.pathname.endsWith("/TweetResultByRestId")) {
+            return jsonResponse(publishedTweetReadback({ text: body }));
+          }
+          throw new Error(`unexpected test request ${request.url.href}`);
+        }),
+      },
+    );
+
+    expect(result).toEqual({
+      status: "succeeded",
+      output: { posts: [{ id: CREATED_POST_ID, url: `https://x.com/i/status/${CREATED_POST_ID}` }] },
+      finalUrl: `https://x.com/i/status/${CREATED_POST_ID}`,
+      dispatchStarted: true,
+      dispatch: { planned: 1, started: 1, verified: 1 },
+    });
+    expect(calls.some((call) => call.url.pathname.endsWith("/CreateTweet"))).toBeTrue();
+  });
+
   test("polls a bounded exact post locator when X public readback settles late", async () => {
     const calls: CapturedRequest[] = [];
     const pauses: number[] = [];

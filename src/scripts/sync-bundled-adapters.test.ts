@@ -655,4 +655,78 @@ describe("single-process bundled adapter generation sync", () => {
     expect(selectedX.manifest.version).not.toBe("1.10.0");
     expect(selectedLinkedIn.manifest.version).not.toBe("1.16.0");
   });
+
+  test("upgrades a leftover archived x-web 1.7.0 posts.publish@2 install", async () => {
+    const state = temporaryState();
+    const captured = outputCapture();
+    const discovered = discoverBundledAdapters();
+    const xWeb = discovered.find((adapter) => adapter.id === "x-web");
+    if (xWeb === undefined) {
+      throw new Error("bundled x-web inventory is required");
+    }
+    const archivedValue = JSON.parse(readFileSync(join(
+      assetsDirectory,
+      "x",
+      "wrench-web-adapter.v1.7.0.json",
+    ), "utf8")) as unknown;
+    const diagnostic = parseDiagnosticManifest(
+      archivedValue,
+      providerPluginRegistry,
+    );
+    expect(diagnostic.ok).toBe(true);
+    if (!diagnostic.ok) throw new Error(diagnostic.issues.join("; "));
+    expect(diagnostic.value.version).toBe("1.7.0");
+    expect(diagnostic.value.operations["posts.publish"]).toMatchObject({
+      webSession: { contractVersion: 2 },
+    });
+    expect(xWeb.upgradeFrom.some((baseline) =>
+      baseline.manifest.version === "1.7.0"
+    )).toBe(true);
+    const runtime = parseRuntimeManifest(
+      archivedValue,
+      providerPluginRegistry,
+    );
+    expect(runtime.ok).toBe(true);
+    if (!runtime.ok) throw new Error(runtime.issues.join("; "));
+    const installedPath = installManifest(runtime.value, {
+      force: true,
+      environment: state.environment,
+      registry: providerPluginRegistry,
+    });
+    expect(installedPath).toBe(adapterManifestPath("x-web", state.environment));
+
+    let selections: readonly BundledAdapterGenerationSelection[] = [];
+    const result = await syncBundledAdapters({
+      environment: state.environment,
+      output: captured.output,
+      wrenchMain: (arguments_, _environment, output) => {
+        writeSuccessfulValidation(arguments_, output);
+        return Promise.resolve(0);
+      },
+      installGeneration: (value) => {
+        selections = value;
+        return {
+          commitId: "00000000-0000-4000-8000-000000000005",
+          installed: value.filter((selection) => selection.state === "present").length,
+          preservedLegacy: value.filter((selection) => selection.state === "legacy").length,
+        };
+      },
+    });
+
+    expect(result.preserved).toBe(0);
+    expect(captured.stderr()).not.toContain("preserved the installed x-web adapter");
+    expect(captured.stderr()).not.toContain(
+      "replaced the installed x-web adapter because it is not valid on this CLI kernel",
+    );
+    const selectedX = selections.find((selection) => selection.id === "x-web");
+    expect(selectedX?.state).toBe("present");
+    if (selectedX?.state !== "present") {
+      throw new Error("kernel-owned x-web selection missing");
+    }
+    expect(selectedX.manifest.version).toBe(xWeb.current.manifest.version);
+    expect(selectedX.manifest.version).not.toBe("1.7.0");
+    expect(selectedX.manifest.operations["posts.publish"]).toMatchObject({
+      webSession: { contractVersion: 3 },
+    });
+  });
 });
